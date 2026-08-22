@@ -40,8 +40,7 @@ async function scrapeAndExtractJSON(targetUrl, userSchema, res) {
             timeout: 10000
         });
 
-        const htmlContent = webResponse.data;
-
+       const htmlContent = typeof webResponse.data === 'string' ? webResponse.data : JSON.stringify(webResponse.data);
         // تنقية الـ HTML من الكود الزايد
         const cleanedText = htmlContent
             .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
