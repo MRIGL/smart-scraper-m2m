@@ -25,11 +25,10 @@ app.post('/scrape', async (req, res) => {
         return res.status(400).json({ error: "Veuillez fournir l'URL du site web." });
     }
 
-    // 🧪 TEST MODE: الاستخراج المباشر للداتا بلا ما نطلبو الفاتورة (402)
     return await scrapeAndExtractJSON(url, schema, res);
 });
 
-// 🛠️ دالة جلب الموقع وتحويله لـ JSON نقي
+// 🛠️ دالة جلب الموقع وتحويله لـ JSON مثالي عبر الذكاء الاصطناعي
 async function scrapeAndExtractJSON(targetUrl, userSchema, res) {
     try {
         const webResponse = await axios.get(targetUrl, {
@@ -39,65 +38,66 @@ async function scrapeAndExtractJSON(targetUrl, userSchema, res) {
             timeout: 10000
         });
 
-        // تحويل محتوى الموقع لنص
-        const htmlContent = typeof webResponse.data === 'string' 
-            ? webResponse.data 
-            : JSON.stringify(webResponse.data);
+        // 1️⃣ تحويل الاستجابة إلى نص أو JSON Object
+        let parsedContent = webResponse.data;
+        let cleanedText = "";
 
-        // تنقية المحتوى
-        const cleanedText = htmlContent
-            .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-            .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
-            .replace(/<[^>]*>/g, ' ')
-            .replace(/\s+/g, ' ')
-            .trim()
-            .substring(0, 6000);
-
-        // تجربة طلب Groq بالموديل الأحدث llama-3.3-70b-versatile
-        if (GROQ_API_KEY) {
-            try {
-                const schemaInstruction = userSchema 
-                    ? `Extract data using keys: ${JSON.stringify(userSchema)}`
-                    : "Extract main key-value pairs.";
-
-                const aiResponse = await axios.post('https://api.groq.com/openai/v1/chat/completions', {
-                    model: "llama-3.3-70b-versatile", 
-                    messages: [
-                        {
-                            role: "system",
-                            content: `You are a JSON extraction AI. Output ONLY raw JSON. ${schemaInstruction}`
-                        },
-                        { role: "user", content: `Extract from:\n${cleanedText}` }
-                    ],
-                    response_format: { type: "json_object" }
-                }, {
-                    headers: { 'Authorization': `Bearer ${GROQ_API_KEY}`, 'Content-Type': 'application/json' }
-                });
-
-                const extractedData = JSON.parse(aiResponse.data.choices[0].message.content);
-                return res.status(200).json({
-                    status: "success",
-                    source_url: targetUrl,
-                    extracted_data: extractedData
-                });
-            } catch (groqErr) {
-                console.log("Groq Error fallback to raw data:", groqErr.message);
-            }
+        if (typeof parsedContent === 'object') {
+            cleanedText = JSON.stringify(parsedContent);
+        } else {
+            cleanedText = String(parsedContent)
+                .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+                .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
+                .replace(/<[^>]*>/g, ' ')
+                .replace(/\s+/g, ' ')
+                .trim();
         }
 
-        // 🔄 Fallback: إذا فشل Groq ترجع الداتا المنظفة مباشرة لضمان نجاح الـ 200 OK
+        cleanedText = cleanedText.substring(0, 6000);
+
+        // 2️⃣ إيلا كان الموقع كيرجع JSON أصلاً، نرجعوه منظم ديريكت
+        if (typeof parsedContent === 'object' && !userSchema) {
+            return res.status(200).json({
+                status: "success",
+                source_url: targetUrl,
+                extracted_data: parsedContent
+            });
+        }
+
+        // 3️⃣ استخراج البيانات الهيكلية عبر Groq AI
+        const schemaInstruction = userSchema 
+            ? `Extract and map data using these keys/schema: ${JSON.stringify(userSchema)}`
+            : "Extract all core data into a structured JSON object with clean key-value pairs.";
+
+        const aiResponse = await axios.post('https://api.groq.com/openai/v1/chat/completions', {
+            model: "llama-3.3-70b-versatile",
+            messages: [
+                {
+                    role: "system",
+                    content: `You are a data extraction AI. Return ONLY a valid JSON object. No markdown block, no text before or after. ${schemaInstruction}`
+                },
+                { role: "user", content: `Extract clean JSON from this text:\n${cleanedText}` }
+            ],
+            response_format: { type: "json_object" }
+        }, {
+            headers: { 
+                'Authorization': `Bearer ${GROQ_API_KEY}`, 
+                'Content-Type': 'application/json' 
+            }
+        });
+
+        let finalJson = JSON.parse(aiResponse.data.choices[0].message.content);
+
         return res.status(200).json({
             status: "success",
             source_url: targetUrl,
-            extracted_data: {
-                content_preview: cleanedText.substring(0, 500),
-                raw_length: cleanedText.length
-            }
+            extracted_data: finalJson
         });
 
     } catch (error) {
         const errDetail = error.response ? JSON.stringify(error.response.data) : error.message;
-        return res.status(500).json({ error: "Failed to scrape site.", detail: errDetail });
+        console.error("Scraping Error:", errDetail);
+        return res.status(500).json({ error: "Failed to process JSON data.", detail: errDetail });
     }
 }
 
