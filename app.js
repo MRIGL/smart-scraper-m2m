@@ -18,68 +18,16 @@ app.use((req, res, next) => {
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
 const SWISS_API_KEY = process.env.SWISS_API_KEY;
 
-// المسار الرئيسي للخدمة
+// المسار الرئيسي للخدمة (تفعيل وضع التجربة المجاني)
 app.post('/scrape', async (req, res) => {
     const { url, schema } = req.body;
-    const paymentToken = req.headers['x-payment-token'];
 
     if (!url) {
         return res.status(400).json({ error: "Veuillez fournir l'URL du site web." });
     }
 
-    // 1️⃣ إيلا صيفط الروبوت Token الخلاص (تأكيد الفاتورة)
-    if (paymentToken) {
-        try {
-            const checkResponse = await axios.get(`https://api.swiss-bitcoin-pay.ch/checkout/${paymentToken}`);
-            const invoice = checkResponse.data;
-
-            if (invoice.isExpired) {
-                return res.status(410).json({ error: "Invoice expired.", invoiceId: paymentToken });
-            }
-
-            if (invoice.isPaid) {
-                // الخلاص داز بنجاح ⚡ غانديروا الاستخراج دابا
-                return await scrapeAndExtractJSON(url, schema, res);
-            }
-
-            return res.status(402).json({ error: "Invoice not paid yet.", invoiceId: paymentToken });
-
-        } catch (err) {
-            const errDetail = err.response ? JSON.stringify(err.response.data) : err.message;
-            console.error("Swiss Bitcoin Pay check error:", errDetail);
-            return res.status(500).json({ error: "Erreur de vérification du paiement.", detail: errDetail });
-        }
-    }
-
-    // 2️⃣ أول طلب (طلب الفاتورة بـ HTTP 402)
-    try {
-        const swissResponse = await axios.post('https://api.swiss-bitcoin-pay.ch/checkout', {
-            amount: 0.02, // الثمن بـ EUR
-            unit: "EUR",
-            title: "Smart Web Data Scraper to JSON",
-            description: "Extraction de données structurées en JSON pour AI Agents"
-        }, {
-            headers: { 'api-key': SWISS_API_KEY, 'Content-Type': 'application/json' }
-        });
-
-        const invoiceId = swissResponse.data.id;
-        const invoicePr = swissResponse.data.pr;
-
-        res.setHeader('X-Invoice', invoicePr);
-        res.setHeader('X-Checking-Id', invoiceId);
-        
-        return res.status(402).json({
-            error: "Payment Required",
-            message: "Pay the Lightning invoice to extract structured JSON data.",
-            invoiceId: invoiceId,
-            paymentRequest: invoicePr
-        });
-
-    } catch (err) {
-        const errorDetail = err.response ? JSON.stringify(err.response.data) : err.message;
-        console.error("Swiss Bitcoin Pay Error:", errorDetail);
-        return res.status(500).json({ error: "Erreur de paiement.", detail: errorDetail });
-    }
+    // 🧪 TEST MODE: الاستخراج المباشر للداتا بلا ما نطلبو الفاتورة (402)
+    return await scrapeAndExtractJSON(url, schema, res);
 });
 
 // 🛠️ دالة جلب الموقع وتحويله لـ JSON نقي عبر الذكاء الاصطناعي
