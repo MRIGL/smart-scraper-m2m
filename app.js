@@ -59,8 +59,8 @@ async function scrapeAndExtractJSON(targetUrl, userSchema, res) {
             : "Extract all relevant key information (e.g., titles, prices, specs, features, contact, metadata) as a clean key-value JSON object.";
 
         const aiResponse = await axios.post('https://api.groq.com/openai/v1/chat/completions', {
-            // ✅ تم تغيير الموديل لموديل مجاني وسهل الوصول إليه
-            model: "llama3-8b-8192", 
+            // ✅ تم تحديث الموديل إلى llama-3.1-8b-instant المتاح حالياً فـ Groq
+            model: "llama-3.1-8b-instant", 
             messages: [
                 {
                     role: "system",
