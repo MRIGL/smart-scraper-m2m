@@ -19,7 +19,7 @@ const GROQ_API_KEY = process.env.GROQ_API_KEY;
 const SWISS_API_KEY = process.env.SWISS_API_KEY;
 
 // المسار الرئيسي للخدمة
-app.post('/api/app', async (req, res) => {
+app.post('/scrape', async (req, res) => {
     const { url, schema } = req.body;
     const paymentToken = req.headers['x-payment-token'];
 
