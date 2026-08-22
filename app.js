@@ -55,7 +55,7 @@ async function scrapeAndExtractJSON(targetUrl, userSchema, res) {
             : "Extract all relevant key information (e.g., titles, prices, specs, features, contact, metadata) as a clean key-value JSON object.";
 
         const aiResponse = await axios.post('https://api.groq.com/openai/v1/chat/completions', {
-            model: "llama-3.1-8b-instant",
+           model: "llama-3.3-70b-versatile",
             messages: [
                 {
                     role: "system",
