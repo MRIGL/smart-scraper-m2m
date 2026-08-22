@@ -37,6 +37,8 @@ app.get('/robots.txt', (req, res) => {
     res.send("User-agent: *\nAllow: /");
 });
 app.post('/scrape', async (req, res) => {
+    console.log("Request Origin/Referer:", req.headers['referer'] || req.headers['origin'] || "Direct/No Referer");
+    console.log("User-Agent:", req.headers['user-agent']);
     const { url, schema } = req.body;
 
     if (!url) {
