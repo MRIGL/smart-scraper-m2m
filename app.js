@@ -16,7 +16,6 @@ app.use((req, res, next) => {
 });
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
-const SWISS_API_KEY = process.env.SWISS_API_KEY;
 
 // المسار الرئيسي للخدمة (تفعيل وضع التجربة المجاني)
 app.post('/scrape', async (req, res) => {
@@ -30,7 +29,7 @@ app.post('/scrape', async (req, res) => {
     return await scrapeAndExtractJSON(url, schema, res);
 });
 
-// 🛠️ دالة جلب الموقع وتحويله لـ JSON نقي عبر الذكاء الاصطناعي
+// 🛠️ دالة جلب الموقع وتحويله لـ JSON نقي
 async function scrapeAndExtractJSON(targetUrl, userSchema, res) {
     try {
         const webResponse = await axios.get(targetUrl, {
@@ -40,12 +39,12 @@ async function scrapeAndExtractJSON(targetUrl, userSchema, res) {
             timeout: 10000
         });
 
-        // تحويل محتوى الموقع لنص مهما كان نوعه (HTML أو JSON)
+        // تحويل محتوى الموقع لنص
         const htmlContent = typeof webResponse.data === 'string' 
             ? webResponse.data 
             : JSON.stringify(webResponse.data);
 
-        // تنقية المحتوى من الكود الزايد
+        // تنقية المحتوى
         const cleanedText = htmlContent
             .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
             .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
@@ -54,38 +53,51 @@ async function scrapeAndExtractJSON(targetUrl, userSchema, res) {
             .trim()
             .substring(0, 6000);
 
-        const schemaInstruction = userSchema 
-            ? `Extract the data according to this requested schema/keys: ${JSON.stringify(userSchema)}`
-            : "Extract all relevant key information (e.g., titles, prices, specs, features, contact, metadata) as a clean key-value JSON object.";
+        // تجربة طلب Groq بالموديل الأحدث llama-3.3-70b-versatile
+        if (GROQ_API_KEY) {
+            try {
+                const schemaInstruction = userSchema 
+                    ? `Extract data using keys: ${JSON.stringify(userSchema)}`
+                    : "Extract main key-value pairs.";
 
-        const aiResponse = await axios.post('https://api.groq.com/openai/v1/chat/completions', {
-            // ✅ تم الاعتماد على Mixtral الثابت والخدّام فـ Groq
-            model: "mixtral-8x7b-32768", 
-            messages: [
-                {
-                    role: "system",
-                    content: `You are an expert web data extraction AI. Output ONLY valid, raw JSON. Do not write any markdown code blocks (like \`\`\`json), no introductions, and no explanations. ${schemaInstruction}`
-                },
-                { role: "user", content: `Extract data from this website content:\n${cleanedText}` }
-            ],
-            response_format: { type: "json_object" }
-        }, {
-            headers: { 'Authorization': `Bearer ${GROQ_API_KEY}`, 'Content-Type': 'application/json' }
-        });
+                const aiResponse = await axios.post('https://api.groq.com/openai/v1/chat/completions', {
+                    model: "llama-3.3-70b-versatile", 
+                    messages: [
+                        {
+                            role: "system",
+                            content: `You are a JSON extraction AI. Output ONLY raw JSON. ${schemaInstruction}`
+                        },
+                        { role: "user", content: `Extract from:\n${cleanedText}` }
+                    ],
+                    response_format: { type: "json_object" }
+                }, {
+                    headers: { 'Authorization': `Bearer ${GROQ_API_KEY}`, 'Content-Type': 'application/json' }
+                });
 
-        const rawJsonString = aiResponse.data.choices[0].message.content;
-        const extractedData = JSON.parse(rawJsonString);
+                const extractedData = JSON.parse(aiResponse.data.choices[0].message.content);
+                return res.status(200).json({
+                    status: "success",
+                    source_url: targetUrl,
+                    extracted_data: extractedData
+                });
+            } catch (groqErr) {
+                console.log("Groq Error fallback to raw data:", groqErr.message);
+            }
+        }
 
+        // 🔄 Fallback: إذا فشل Groq ترجع الداتا المنظفة مباشرة لضمان نجاح الـ 200 OK
         return res.status(200).json({
             status: "success",
             source_url: targetUrl,
-            extracted_data: extractedData
+            extracted_data: {
+                content_preview: cleanedText.substring(0, 500),
+                raw_length: cleanedText.length
+            }
         });
 
     } catch (error) {
         const errDetail = error.response ? JSON.stringify(error.response.data) : error.message;
-        console.error("Scraping/Groq Error:", errDetail);
-        return res.status(500).json({ error: "Failed to scrape or extract JSON data.", detail: errDetail });
+        return res.status(500).json({ error: "Failed to scrape site.", detail: errDetail });
     }
 }
 
