@@ -18,6 +18,24 @@ app.use((req, res, next) => {
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
 
 // المسار الرئيسي للخدمة (تفعيل وضع التجربة المجاني)
+// 1. مسار ترحيبي للصفحة الرئيسية
+app.get('/', (req, res) => {
+    res.status(200).send("Smart Scraper M2M API is running! Send a POST request to /scrape.");
+});
+
+// 2. توضيح الاستعمال فاش يدخل شي حد بـ GET لـ /scrape
+app.get('/scrape', (req, res) => {
+    res.status(200).json({
+        message: "This is an M2M API endpoint. Please send a POST request with a JSON body.",
+        example_body: { url: "https://example.com" }
+    });
+});
+
+// 3. السماح لـ robots.txt
+app.get('/robots.txt', (req, res) => {
+    res.type('text/plain');
+    res.send("User-agent: *\nAllow: /");
+});
 app.post('/scrape', async (req, res) => {
     const { url, schema } = req.body;
 
