@@ -40,8 +40,12 @@ async function scrapeAndExtractJSON(targetUrl, userSchema, res) {
             timeout: 10000
         });
 
-       const htmlContent = typeof webResponse.data === 'string' ? webResponse.data : JSON.stringify(webResponse.data);
-        // تنقية الـ HTML من الكود الزايد
+        // تحويل محتوى الموقع لنص مهما كان نوعه (HTML أو JSON)
+        const htmlContent = typeof webResponse.data === 'string' 
+            ? webResponse.data 
+            : JSON.stringify(webResponse.data);
+
+        // تنقية المحتوى من الكود الزايد
         const cleanedText = htmlContent
             .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
             .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
@@ -55,7 +59,8 @@ async function scrapeAndExtractJSON(targetUrl, userSchema, res) {
             : "Extract all relevant key information (e.g., titles, prices, specs, features, contact, metadata) as a clean key-value JSON object.";
 
         const aiResponse = await axios.post('https://api.groq.com/openai/v1/chat/completions', {
-           model: "llama-3.3-70b-versatile",
+            // ✅ تم تغيير الموديل لموديل مجاني وسهل الوصول إليه
+            model: "llama3-8b-8192", 
             messages: [
                 {
                     role: "system",
