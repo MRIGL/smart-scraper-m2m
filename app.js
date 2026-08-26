@@ -125,7 +125,7 @@ async function scrapeAndExtractJSON(targetUrl, userSchema, res) {
         .trim();
     }
 
-    cleanedText = cleanedText.substring(0, 6000);
+    cleanedText = cleanedText.substring(0, 2500);
 
     if (typeof parsedContent === 'object' && !userSchema) {
       return res.status(200).json({
