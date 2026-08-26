@@ -149,7 +149,7 @@ async function scrapeAndExtractJSON(targetUrl, userSchema, res) {
 
     const activeModels = modelsResponse.data.data.map(m => m.id);
     // اختيار الموديل الشغال (إما llama أو أول موديل متاح)
-    const selectedModel = activeModels.find(m => m.includes('llama')) || activeModels[0];
+    const selectedModel = activeModels.find(m => m.includes('llama') && !m.includes('guard')) || 'llama-3.1-8b-instant';
 
     const schemaInstruction = userSchema 
       ? `Extract and map data using these keys/schema: ${JSON.stringify(userSchema)}`
