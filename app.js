@@ -145,7 +145,7 @@ async function scrapeAndExtractJSON(targetUrl, userSchema, res) {
     const GROQ_API_KEY = process.env.GROQ_API_KEY;
 
     const aiResponse = await axios.post('https://api.groq.com/openai/v1/chat/completions', {
-      model: "llama-3.1-8b-instant", // تم إصلاح الفاصلة هنا
+     model: "llama3-8b-8192", // تم إصلاح الفاصلة هنا
       messages: [
         {
           role: "system",
