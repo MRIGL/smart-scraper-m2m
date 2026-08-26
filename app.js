@@ -102,7 +102,6 @@ app.post(['/scrape', '/api/scrape'], async (req, res) => {
 });
 
 // 🛠️ دالة جلب الموقع وتحويله لـ JSON مثالي عبر الذكاء الاصطناعي
-
 // 🛠️ دالة جلب الموقع وتحويله لـ JSON مثالي عبر الذكاء الاصطناعي
 async function scrapeAndExtractJSON(targetUrl, userSchema, res) {
   try {
@@ -140,15 +139,24 @@ async function scrapeAndExtractJSON(targetUrl, userSchema, res) {
       });
     }
 
-    // 3️⃣ استخراج البيانات الهيكلية عبر Groq AI
+    // 3️⃣ استخرج البيانات عبر Groq AI باستخدام أول موديل متوفر فـ حسابك
     const GROQ_API_KEY = process.env.GROQ_API_KEY;
+
+    // جلب قائمة الموديلات المتاحة فـ حسابك تلقائياً
+    const modelsResponse = await axios.get('https://api.groq.com/openai/v1/models', {
+      headers: { 'Authorization': `Bearer ${GROQ_API_KEY}` }
+    });
+
+    const activeModels = modelsResponse.data.data.map(m => m.id);
+    // اختيار الموديل الشغال (إما llama أو أول موديل متاح)
+    const selectedModel = activeModels.find(m => m.includes('llama')) || activeModels[0];
 
     const schemaInstruction = userSchema 
       ? `Extract and map data using these keys/schema: ${JSON.stringify(userSchema)}`
       : "Extract all core data into a structured JSON object with clean key-value pairs.";
 
     const aiResponse = await axios.post('https://api.groq.com/openai/v1/chat/completions', {
-      model: "llama-3.3-70b-versatile",
+      model: selectedModel,
       messages: [
         {
           role: "system",
@@ -164,7 +172,7 @@ async function scrapeAndExtractJSON(targetUrl, userSchema, res) {
     });
 
     let rawContent = aiResponse.data.choices[0].message.content.trim();
-    // إزالة أي رموز markdown زائدة في حالة أرجعها الموديل
+    // إزالة أي رموز markdown زائدة
     rawContent = rawContent.replace(/^```json\s*/, '').replace(/^```\s*/, '').replace(/\s*```$/, '');
 
     let finalJson = JSON.parse(rawContent);
@@ -172,6 +180,7 @@ async function scrapeAndExtractJSON(targetUrl, userSchema, res) {
     return res.status(200).json({
       status: "success",
       source_url: targetUrl,
+      used_model: selectedModel,
       extracted_data: finalJson
     });
 
@@ -181,5 +190,7 @@ async function scrapeAndExtractJSON(targetUrl, userSchema, res) {
     return res.status(500).json({ error: "Failed to process JSON data.", detail: errDetail });
   }
 }
+
+module.exports = app;
 
 module.exports = app;
