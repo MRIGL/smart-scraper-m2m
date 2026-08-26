@@ -43,7 +43,7 @@ app.get('/', (req, res) => {
         <h1>Smart Scraper M2M</h1>
         <p>An automated web scraping API built for AI Agents. Test a URL below:</p>
         
-        <form action="/api/scrape" method="POST" class="input-group">
+       <form action="/scrape" method="POST" class="input-group">
           <input type="url" name="url" placeholder="https://example.com" required>
           <button type="submit" class="btn">Scrape Now</button>
         </form>
