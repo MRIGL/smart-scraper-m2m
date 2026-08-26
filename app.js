@@ -128,7 +128,7 @@ async function scrapeAndExtractJSON(targetUrl, userSchema, res) {
     }
 
     // تقليل حجم النص لتفادي تجاوز عدد الحروف (Tokens)
-    cleanedText = cleanedText.substring(0, 2500);
+    cleanedText = cleanedText.substring(0, 1500);
 
     // 2️⃣ إيلا كان الموقع كيرجع JSON أصلاً، نرجعوه منظم ديريكت
     if (typeof parsedContent === 'object' && !userSchema) {
