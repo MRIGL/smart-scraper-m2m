@@ -155,14 +155,13 @@ async function scrapeAndExtractJSON(targetUrl, userSchema, res) {
       ? `Extract and map data using these keys/schema: ${JSON.stringify(userSchema)}`
       : "Extract all core data into a structured JSON object with clean key-value pairs.";
 
-    const aiResponse = await axios.post('https://api.groq.com/openai/v1/chat/completions', {
+  const aiResponse = await axios.post('https://api.groq.com/openai/v1/chat/completions', {
       model: selectedModel,
       messages: [
-        {
-          role: "system",
-          content: `You are a data extraction AI. Return ONLY a valid JSON object. Do not wrap in markdown or backticks. ${schemaInstruction}`
-        },
-        { role: "user", content: `Extract clean JSON from this text:\n${cleanedText}` }
+        { 
+          role: "user", 
+          content: `You are a data extraction AI. Return ONLY a valid JSON object. Do not wrap in markdown or backticks. ${schemaInstruction}\n\nExtract clean JSON from this text:\n${cleanedText}` 
+        }
       ]
     }, {
       headers: { 
@@ -170,7 +169,6 @@ async function scrapeAndExtractJSON(targetUrl, userSchema, res) {
         'Content-Type': 'application/json' 
       }
     });
-
     let rawContent = aiResponse.data.choices[0].message.content.trim();
     // إزالة أي رموز markdown زائدة
     rawContent = rawContent.replace(/^```json\s*/, '').replace(/^```\s*/, '').replace(/\s*```$/, '');
