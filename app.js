@@ -3,6 +3,22 @@ const axios = require('axios');
 const app = express();
 
 app.use(express.json());
+// Variable to count POST requests
+let postCount = 0;
+
+// Middleware to track POST requests
+app.use((req, res, next) => {
+  if (req.method === 'POST') {
+    postCount++;
+    console.log(`[POST_STATS] Total POSTs: ${postCount}`);
+  }
+  next();
+});
+
+// Endpoint to view total POST requests count
+app.get('/stats', (req, res) => {
+  res.json({ total_post_requests: postCount });
+});
 
 // 🔓 دعم الـ CORS للروبوتات والـ AI Agents
 app.use((req, res, next) => {
