@@ -102,6 +102,8 @@ app.post(['/scrape', '/api/scrape'], async (req, res) => {
 });
 
 // 🛠️ دالة جلب الموقع وتحويله لـ JSON مثالي عبر الذكاء الاصطناعي
+
+// 🛠️ دالة جلب الموقع وتحويله لـ JSON مثالي عبر الذكاء الاصطناعي
 async function scrapeAndExtractJSON(targetUrl, userSchema, res) {
   try {
     const webResponse = await axios.get(targetUrl, {
@@ -111,6 +113,7 @@ async function scrapeAndExtractJSON(targetUrl, userSchema, res) {
       timeout: 10000
     });
 
+    // 1️⃣ تحويل الاستجابة إلى نص أو JSON Object
     let parsedContent = webResponse.data;
     let cleanedText = "";
 
@@ -125,8 +128,10 @@ async function scrapeAndExtractJSON(targetUrl, userSchema, res) {
         .trim();
     }
 
+    // تقليل حجم النص لتفادي تجاوز عدد الحروف (Tokens)
     cleanedText = cleanedText.substring(0, 2500);
 
+    // 2️⃣ إيلا كان الموقع كيرجع JSON أصلاً، نرجعوه منظم ديريكت
     if (typeof parsedContent === 'object' && !userSchema) {
       return res.status(200).json({
         status: "success",
@@ -135,32 +140,22 @@ async function scrapeAndExtractJSON(targetUrl, userSchema, res) {
       });
     }
 
+    // 3️⃣ استخراج البيانات الهيكلية عبر Groq AI
     const GROQ_API_KEY = process.env.GROQ_API_KEY;
-
-    // 1️⃣ جلب قائمة الموديلات الشغالة فـ حسابك تلقائياً
-    const modelsListRes = await axios.get('https://api.groq.com/openai/v1/models', {
-      headers: { 'Authorization': `Bearer ${GROQ_API_KEY}` }
-    });
-    
-    // إيجاد الموديل المتاح تلقائياً
-    const availableModels = modelsListRes.data.data.map(m => m.id);
-    const selectedModel = availableModels.find(m => m.includes('llama') || m.includes('mixtral')) || availableModels[0];
 
     const schemaInstruction = userSchema 
       ? `Extract and map data using these keys/schema: ${JSON.stringify(userSchema)}`
       : "Extract all core data into a structured JSON object with clean key-value pairs.";
 
-    // 2️⃣ إرسال الطلب بالموديل المتوفر فعلياً
     const aiResponse = await axios.post('https://api.groq.com/openai/v1/chat/completions', {
-      model: selectedModel,
+      model: "llama-3.3-70b-versatile",
       messages: [
         {
           role: "system",
-          content: `You are a data extraction AI. Return ONLY a valid JSON object. No markdown block, no text before or after. ${schemaInstruction}`
+          content: `You are a data extraction AI. Return ONLY a valid JSON object. Do not wrap in markdown or backticks. ${schemaInstruction}`
         },
         { role: "user", content: `Extract clean JSON from this text:\n${cleanedText}` }
-      ],
-      response_format: { type: "json_object" }
+      ]
     }, {
       headers: { 
         'Authorization': `Bearer ${GROQ_API_KEY}`, 
@@ -168,12 +163,15 @@ async function scrapeAndExtractJSON(targetUrl, userSchema, res) {
       }
     });
 
-    let finalJson = JSON.parse(aiResponse.data.choices[0].message.content);
+    let rawContent = aiResponse.data.choices[0].message.content.trim();
+    // إزالة أي رموز markdown زائدة في حالة أرجعها الموديل
+    rawContent = rawContent.replace(/^```json\s*/, '').replace(/^```\s*/, '').replace(/\s*```$/, '');
+
+    let finalJson = JSON.parse(rawContent);
 
     return res.status(200).json({
       status: "success",
       source_url: targetUrl,
-      used_model: selectedModel,
       extracted_data: finalJson
     });
 
