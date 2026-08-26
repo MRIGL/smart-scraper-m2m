@@ -25,23 +25,30 @@ app.get('/', (req, res) => {
       <title>Smart Scraper M2M</title>
       <style>
         body { background: #0b0f17; color: #f8fafc; font-family: system-ui, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        .card { background: #161b26; padding: 2.5rem; border-radius: 16px; border: 1px solid #1e293b; text-align: center; max-width: 450px; box-shadow: 0 20px 40px rgba(0,0,0,0.4); }
+        .card { background: #161b26; padding: 2.5rem; border-radius: 16px; border: 1px solid #1e293b; text-align: center; max-width: 480px; box-shadow: 0 20px 40px rgba(0,0,0,0.4); }
         .badge { background: rgba(56,189,248,0.1); color: #38bdf8; padding: 0.3rem 0.8rem; border-radius: 20px; font-size: 0.8rem; border: 1px solid rgba(56,189,248,0.2); }
         h1 { font-size: 1.8rem; margin: 1rem 0 0.5rem; }
         p { color: #94a3b8; font-size: 0.95rem; line-height: 1.5; margin-bottom: 1.5rem; }
-        .code-box { background: #0f172a; padding: 0.8rem; border-radius: 8px; border: 1px solid #1e293b; font-family: monospace; color: #4ade80; margin-bottom: 1.5rem; }
-        .btn { display: inline-block; background: #38bdf8; color: #0f172a; padding: 0.75rem 1.5rem; border-radius: 8px; text-decoration: none; font-weight: 600; margin: 0 0.25rem; }
-        .btn-sec { background: transparent; color: #f8fafc; border: 1px solid #1e293b; }
+        .input-group { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; }
+        input { flex: 1; background: #0f172a; border: 1px solid #1e293b; padding: 0.75rem 1rem; border-radius: 8px; color: #fff; font-size: 0.9rem; outline: none; }
+        input:focus { border-color: #38bdf8; }
+        .btn { background: #38bdf8; color: #0f172a; padding: 0.75rem 1.2rem; border-radius: 8px; text-decoration: none; font-weight: 600; border: none; cursor: pointer; }
+        .btn-sec { display: block; background: transparent; color: #94a3b8; text-decoration: none; font-size: 0.85rem; margin-top: 1rem; }
+        .btn-sec:hover { color: #38bdf8; }
       </style>
     </head>
     <body>
       <div class="card">
         <span class="badge">● M2M Agent Endpoint Active</span>
         <h1>Smart Scraper M2M</h1>
-        <p>An automated web scraping API built for AI Agents and Machine-to-Machine integrations.</p>
-        <div class="code-box">POST /api/scrape</div>
-        <a href="/stats" class="btn btn-sec">Live Stats</a>
-        <a href="https://github.com/MRIGL/smart-scraper-m2m" target="_blank" class="btn">GitHub Docs</a>
+        <p>An automated web scraping API built for AI Agents. Test a URL below:</p>
+        
+        <form action="/api/scrape" method="POST" class="input-group">
+          <input type="url" name="url" placeholder="https://example.com" required>
+          <button type="submit" class="btn">Scrape Now</button>
+        </form>
+
+        <a href="https://github.com/MRIGL/smart-scraper-m2m" target="_blank" class="btn-sec">View GitHub Docs & Stats</a>
       </div>
     </body>
     </html>
