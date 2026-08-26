@@ -15,6 +15,40 @@ app.use((req, res, next) => {
   next();
 });
 
+app.get('/', (req, res) => {
+  res.send(`
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Smart Scraper M2M</title>
+      <style>
+        body { background: #0b0f17; color: #f8fafc; font-family: system-ui, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .card { background: #161b26; padding: 2.5rem; border-radius: 16px; border: 1px solid #1e293b; text-align: center; max-width: 450px; box-shadow: 0 20px 40px rgba(0,0,0,0.4); }
+        .badge { background: rgba(56,189,248,0.1); color: #38bdf8; padding: 0.3rem 0.8rem; border-radius: 20px; font-size: 0.8rem; border: 1px solid rgba(56,189,248,0.2); }
+        h1 { font-size: 1.8rem; margin: 1rem 0 0.5rem; }
+        p { color: #94a3b8; font-size: 0.95rem; line-height: 1.5; margin-bottom: 1.5rem; }
+        .code-box { background: #0f172a; padding: 0.8rem; border-radius: 8px; border: 1px solid #1e293b; font-family: monospace; color: #4ade80; margin-bottom: 1.5rem; }
+        .btn { display: inline-block; background: #38bdf8; color: #0f172a; padding: 0.75rem 1.5rem; border-radius: 8px; text-decoration: none; font-weight: 600; margin: 0 0.25rem; }
+        .btn-sec { background: transparent; color: #f8fafc; border: 1px solid #1e293b; }
+      </style>
+    </head>
+    <body>
+      <div class="card">
+        <span class="badge">● M2M Agent Endpoint Active</span>
+        <h1>Smart Scraper M2M</h1>
+        <p>An automated web scraping API built for AI Agents and Machine-to-Machine integrations.</p>
+        <div class="code-box">POST /api/scrape</div>
+        <a href="/stats" class="btn btn-sec">Live Stats</a>
+        <a href="https://github.com/MRIGL/smart-scraper-m2m" target="_blank" class="btn">GitHub Docs</a>
+      </div>
+    </body>
+    </html>
+  `);
+});
+
+
 // Endpoint to view total POST requests count
 app.get('/stats', (req, res) => {
   res.json({ total_post_requests: postCount });
@@ -130,45 +164,7 @@ async function scrapeAndExtractJSON(targetUrl, userSchema, res) {
         console.error("Scraping Error:", errDetail);
         return res.status(500).json({ error: "Failed to process JSON data.", detail: errDetail });
     }
-  app.get('/', (req, res) => {
-  res.send(`
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Smart Scraper M2M | AI-Powered Scraping API</title>
-      <style>
-        :root { --bg: #0b0f17; --card-bg: #161b26; --accent: #38bdf8; --text: #f8fafc; --text-muted: #94a3b8; --border: #1e293b; }
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: var(--bg); color: var(--text); display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 1.5rem; }
-        .container { background: var(--card-bg); border: 1px solid var(--border); border-radius: 16px; padding: 2.5rem; max-width: 520px; width: 100%; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4); text-align: center; }
-        .badge { display: inline-block; background: rgba(56, 189, 248, 0.1); color: var(--accent); font-size: 0.8rem; font-weight: 600; padding: 0.3rem 0.8rem; border-radius: 20px; border: 1px solid rgba(56, 189, 248, 0.2); margin-bottom: 1rem; }
-        h1 { font-size: 2rem; font-weight: 700; margin-bottom: 0.75rem; }
-        p { color: var(--text-muted); line-height: 1.6; font-size: 0.95rem; margin-bottom: 1.5rem; }
-        .endpoint-box { background: #0f172a; border: 1px solid var(--border); border-radius: 8px; padding: 0.8rem 1rem; font-family: monospace; font-size: 0.85rem; display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
-        .method { color: #4ade80; font-weight: bold; }
-        .actions { display: flex; gap: 1rem; }
-        .btn { flex: 1; text-align: center; padding: 0.75rem 1rem; border-radius: 8px; font-weight: 600; font-size: 0.9rem; text-decoration: none; transition: all 0.2s ease; }
-        .btn-primary { background: var(--accent); color: #0f172a; }
-        .btn-secondary { background: transparent; color: var(--text); border: 1px solid var(--border); }
-      </style>
-    </head>
-    <body>
-      <div class="container">
-        <span class="badge">● M2M Agent Endpoint Active</span>
-        <h1>Smart Scraper M2M</h1>
-        <p>An automated, high-performance web scraping API built for AI Agents and Machine-to-Machine integrations.</p>
-        <div class="endpoint-box"><span class="method">POST</span><span>/api/scrape</span></div>
-        <div class="actions">
-          <a href="/stats" class="btn btn-secondary">View Live Stats</a>
-          <a href="https://github.com/MRIGL/smart-scraper-m2m" target="_blank" class="btn btn-primary">GitHub Docs</a>
-        </div>
-      </div>
-    </body>
-    </html>
-  `);
-});
+
 }
 
 module.exports = app;
