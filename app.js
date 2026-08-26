@@ -92,7 +92,8 @@ app.get('/robots.txt', (req, res) => {
 app.post('/scrape', async (req, res) => {
     console.log("Request Origin/Referer:", req.headers['referer'] || req.headers['origin'] || "Direct/No Referer");
     console.log("User-Agent:", req.headers['user-agent']);
-    const { url, schema } = req.body;
+    const url = req.body.url || req.body.targetUrl;
+    const schema = req.body.schema;
 
     if (!url) {
         return res.status(400).json({ error: "Veuillez fournir l'URL du site web." });
