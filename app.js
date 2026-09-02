@@ -149,7 +149,7 @@ async function scrapeAndExtractJSON(targetUrl, userSchema, res) {
       : "Extract all core data into a structured JSON object with clean key-value pairs.";
 
     const aiResponse = await axios.post(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.6-flash:generateContent?key=${GEMINI_API_KEY}`,
       {
         contents: [
           {
