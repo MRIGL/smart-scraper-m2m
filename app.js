@@ -101,8 +101,7 @@ app.post(['/scrape', '/api/scrape'], async (req, res) => {
   return await scrapeAndExtractJSON(url, schema, res);
 });
 
-// 🛠️ دالة جلب الموقع وتحويله لـ JSON مثالي عبر الذكاء الاصطناعي
-// 🛠️ دالة جلب الموقع وتحويله لـ JSON مثالي عبر الذكاء الاصطناعي
+// 🛠️ دالة جلب الموقع وتحويله لـ JSON مثالي عبر Google Gemini API
 async function scrapeAndExtractJSON(targetUrl, userSchema, res) {
   try {
     const webResponse = await axios.get(targetUrl, {
@@ -127,10 +126,10 @@ async function scrapeAndExtractJSON(targetUrl, userSchema, res) {
         .trim();
     }
 
-    // تقليل حجم النص لتفادي تجاوز عدد الحروف (Tokens)
-    cleanedText = cleanedText.substring(0, 1500);
+    // Gemini كيقبل مساحة ضخمة، هادشي علاش كبرنا الحجم لـ 10000 حرف
+    cleanedText = cleanedText.substring(0, 10000);
 
-    // 2️⃣ إيلا كان الموقع كيرجع JSON أصلاً، نرجعوه منظم ديريكت
+    // 2️⃣ إيلا كان الموقع كيرجع JSON أصلاً
     if (typeof parsedContent === 'object' && !userSchema) {
       return res.status(200).json({
         status: "success",
@@ -139,46 +138,44 @@ async function scrapeAndExtractJSON(targetUrl, userSchema, res) {
       });
     }
 
-    // 3️⃣ استخرج البيانات عبر Groq AI باستخدام أول موديل متوفر فـ حسابك
-    const GROQ_API_KEY = process.env.GROQ_API_KEY;
+    // 3️⃣ استخراج البيانات عبر Google Gemini
+    const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
-    // جلب قائمة الموديلات المتاحة فـ حسابك تلقائياً
-    const modelsResponse = await axios.get('https://api.groq.com/openai/v1/models', {
-      headers: { 'Authorization': `Bearer ${GROQ_API_KEY}` }
-    });
-
-    const activeModels = modelsResponse.data.data.map(m => m.id);
-    // اختيار الموديل الشغال (إما llama أو أول موديل متاح)
-    const selectedModel = activeModels.find(m => m.includes('llama') && !m.includes('guard')) || 'llama-3.1-8b-instant';
+    if (!GEMINI_API_KEY) {
+      return res.status(500).json({ error: "GEMINI_API_KEY is not configured in environment variables." });
+    }
 
     const schemaInstruction = userSchema 
       ? `Extract and map data using these keys/schema: ${JSON.stringify(userSchema)}`
       : "Extract all core data into a structured JSON object with clean key-value pairs.";
 
-  const aiResponse = await axios.post('https://api.groq.com/openai/v1/chat/completions', {
-      model: selectedModel,
-      messages: [
-        { 
-          role: "user", 
-          content: `You are a data extraction AI. Return ONLY a valid JSON object. Do not wrap in markdown or backticks. ${schemaInstruction}\n\nExtract clean JSON from this text:\n${cleanedText}` 
+    const aiResponse = await axios.post(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+      {
+        contents: [
+          {
+            parts: [
+              {
+                text: `You are a data extraction AI. Extract clean structured data from this content according to this instruction: ${schemaInstruction}\n\nSource Content:\n${cleanedText}`
+              }
+            ]
+          }
+        ],
+        generationConfig: {
+          responseMimeType: "application/json"
         }
-      ]
-    }, {
-      headers: { 
-        'Authorization': `Bearer ${GROQ_API_KEY}`, 
-        'Content-Type': 'application/json' 
+      },
+      {
+        headers: { 'Content-Type': 'application/json' }
       }
-    });
-    let rawContent = aiResponse.data.choices[0].message.content.trim();
-    // إزالة أي رموز markdown زائدة
-    rawContent = rawContent.replace(/^```json\s*/, '').replace(/^```\s*/, '').replace(/\s*```$/, '');
+    );
 
-    let finalJson = JSON.parse(rawContent);
+    const rawJsonText = aiResponse.data.candidates[0].content.parts[0].text;
+    const finalJson = JSON.parse(rawJsonText);
 
     return res.status(200).json({
       status: "success",
       source_url: targetUrl,
-      used_model: selectedModel,
       extracted_data: finalJson
     });
 
@@ -188,7 +185,5 @@ async function scrapeAndExtractJSON(targetUrl, userSchema, res) {
     return res.status(500).json({ error: "Failed to process JSON data.", detail: errDetail });
   }
 }
-
-module.exports = app;
 
 module.exports = app;
