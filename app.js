@@ -126,7 +126,6 @@ async function scrapeAndExtractJSON(targetUrl, userSchema, res) {
         .trim();
     }
 
-    // تقليم النص لتفادي الإطالة
     cleanedText = cleanedText.substring(0, 10000);
 
     // 2️⃣ إيلا كان الموقع كيرجع JSON أصلاً
@@ -138,7 +137,7 @@ async function scrapeAndExtractJSON(targetUrl, userSchema, res) {
       });
     }
 
-    // 3️⃣ استخراج البيانات عبر Google Gemini
+    // 3️⃣ استخراج البيانات عبر Google Gemini (v1 endpoint)
     const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
     if (!GEMINI_API_KEY) {
@@ -150,7 +149,7 @@ async function scrapeAndExtractJSON(targetUrl, userSchema, res) {
       : "Extract all core data into a structured JSON object with clean key-value pairs.";
 
     const aiResponse = await axios.post(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
       {
         contents: [
           {
