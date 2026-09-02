@@ -1,5 +1,7 @@
 const express = require('express');
 const axios = require('axios');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
+
 const app = express();
 
 app.use(express.json());
@@ -73,7 +75,6 @@ app.get('/stats', (req, res) => {
   res.json({ total_post_requests: postCount });
 });
 
-// 2. توضيح الاستعمال فاش يدخل شي حد بـ GET لـ /scrape
 app.get('/scrape', (req, res) => {
   res.status(200).json({
     message: "This is an M2M API endpoint. Please send a POST request with a JSON body.",
@@ -81,7 +82,6 @@ app.get('/scrape', (req, res) => {
   });
 });
 
-// 3. السماح لـ robots.txt
 app.get('/robots.txt', (req, res) => {
   res.type('text/plain');
   res.send("User-agent: *\nAllow: /");
@@ -101,7 +101,6 @@ app.post(['/scrape', '/api/scrape'], async (req, res) => {
   return await scrapeAndExtractJSON(url, schema, res);
 });
 
-// 🛠️ دالة جلب الموقع وتحويله لـ JSON مثالي عبر Google Gemini API
 async function scrapeAndExtractJSON(targetUrl, userSchema, res) {
   try {
     const webResponse = await axios.get(targetUrl, {
@@ -111,7 +110,6 @@ async function scrapeAndExtractJSON(targetUrl, userSchema, res) {
       timeout: 10000
     });
 
-    // 1️⃣ تحويل الاستجابة إلى نص أو JSON Object
     let parsedContent = webResponse.data;
     let cleanedText = "";
 
@@ -128,7 +126,6 @@ async function scrapeAndExtractJSON(targetUrl, userSchema, res) {
 
     cleanedText = cleanedText.substring(0, 10000);
 
-    // 2️⃣ إيلا كان الموقع كيرجع JSON أصلاً
     if (typeof parsedContent === 'object' && !userSchema) {
       return res.status(200).json({
         status: "success",
@@ -137,39 +134,26 @@ async function scrapeAndExtractJSON(targetUrl, userSchema, res) {
       });
     }
 
-    // 3️⃣ استخراج البيانات عبر Google Gemini
     const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
     if (!GEMINI_API_KEY) {
       return res.status(500).json({ error: "GEMINI_API_KEY is not configured in environment variables." });
     }
 
+    const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
+    const model = genAI.getGenerativeModel({
+      model: "gemini-1.5-flash",
+      generationConfig: { responseMimeType: "application/json" }
+    });
+
     const schemaInstruction = userSchema 
       ? `Extract and map data using these keys/schema: ${JSON.stringify(userSchema)}`
       : "Extract all core data into a structured JSON object with clean key-value pairs.";
 
-    const aiResponse = await axios.post(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.6-flash:generateContent?key=${GEMINI_API_KEY}`,
-      {
-        contents: [
-          {
-            parts: [
-              {
-                text: `You are a data extraction AI. Extract clean structured data from this content according to this instruction: ${schemaInstruction}\n\nSource Content:\n${cleanedText}`
-              }
-            ]
-          }
-        ],
-        generationConfig: {
-          responseMimeType: "application/json"
-        }
-      },
-      {
-        headers: { 'Content-Type': 'application/json' }
-      }
-    );
+    const prompt = `You are a data extraction AI. Extract clean structured data from this content according to this instruction: ${schemaInstruction}\n\nSource Content:\n${cleanedText}`;
 
-    const rawJsonText = aiResponse.data.candidates[0].content.parts[0].text;
+    const result = await model.generateContent(prompt);
+    const rawJsonText = result.response.text();
     const finalJson = JSON.parse(rawJsonText);
 
     return res.status(200).json({
@@ -179,9 +163,8 @@ async function scrapeAndExtractJSON(targetUrl, userSchema, res) {
     });
 
   } catch (error) {
-    const errDetail = error.response ? JSON.stringify(error.response.data) : error.message;
-    console.error("Scraping Error:", errDetail);
-    return res.status(500).json({ error: "Failed to process JSON data.", detail: errDetail });
+    console.error("Scraping Error:", error);
+    return res.status(500).json({ error: "Failed to process JSON data.", detail: error.message });
   }
 }
 
