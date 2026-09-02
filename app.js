@@ -7,10 +7,8 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Variable to count POST requests
 let postCount = 0;
 
-// Middleware to track POST requests
 app.use((req, res, next) => {
   if (req.method === 'POST') {
     postCount++;
@@ -19,7 +17,6 @@ app.use((req, res, next) => {
   next();
 });
 
-// 🔓 دعم الـ CORS للروبوتات والـ AI Agents
 app.use((req, res, next) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
@@ -70,7 +67,6 @@ app.get('/', (req, res) => {
   `);
 });
 
-// Endpoint to view total POST requests count
 app.get('/stats', (req, res) => {
   res.json({ total_post_requests: postCount });
 });
@@ -88,9 +84,6 @@ app.get('/robots.txt', (req, res) => {
 });
 
 app.post(['/scrape', '/api/scrape'], async (req, res) => {
-  console.log("Request Origin/Referer:", req.headers['referer'] || req.headers['origin'] || "Direct/No Referer");
-  console.log("User-Agent:", req.headers['user-agent']);
-  
   const url = req.body ? (req.body.url || req.body.targetUrl) : null;
   const schema = req.body ? req.body.schema : null;
 
@@ -141,8 +134,10 @@ async function scrapeAndExtractJSON(targetUrl, userSchema, res) {
     }
 
     const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
+    
+    // 💡 استخدام موديل gemini-2.0-flash المعتمد حالياً
     const model = genAI.getGenerativeModel({
-      model: "gemini-1.5-flash",
+      model: "gemini-2.0-flash",
       generationConfig: { responseMimeType: "application/json" }
     });
 
