@@ -82,6 +82,10 @@ app.get('/robots.txt', (req, res) => {
   res.type('text/plain');
   res.send("User-agent: *\nAllow: /");
 });
+app.get('/robots.txt', (req, res) => {
+  res.type('text/plain');
+  res.send("User-agent: *\nAllow: /");
+});
 
 app.post(['/scrape', '/api/scrape'], async (req, res) => {
   const url = req.body ? (req.body.url || req.body.targetUrl) : null;
