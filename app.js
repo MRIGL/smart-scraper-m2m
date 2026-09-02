@@ -135,9 +135,9 @@ async function scrapeAndExtractJSON(targetUrl, userSchema, res) {
 
     const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
     
-    // 💡 استخدام موديل gemini-2.0-flash المعتمد حالياً
+    // 💡 استخدام موديل gemini-3.6-flash المطلوب
     const model = genAI.getGenerativeModel({
-      model: "gemini-2.0-flash",
+      model: "gemini-3.6-flash",
       generationConfig: { responseMimeType: "application/json" }
     });
 
