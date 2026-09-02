@@ -1,14 +1,14 @@
 {
   "name": "smart-scraper-m2m",
   "version": "1.0.0",
-  "description": "An automated web scraping API built for AI agents",
+  "description": "An automated web scraping API built for AI Agents",
   "main": "app.js",
   "scripts": {
     "start": "node app.js"
   },
   "dependencies": {
-    "@google/generative-ai": "^0.21.0",
-    "axios": "^1.7.0",
-    "express": "^4.19.0"
+    "@sparticuz/chromium": "^123.0.0",
+    "express": "^4.19.2",
+    "puppeteer-core": "^22.6.0"
   }
 }
