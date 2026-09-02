@@ -1,5 +1,6 @@
 const express = require('express');
-const axios = require('axios');
+const puppeteer = require('puppeteer-core');
+const chromium = require('@sparticuz/chromium');
 
 const app = express();
 
@@ -52,7 +53,7 @@ app.get('/', (req, res) => {
       <div class="card">
         <span class="badge">● M2M Agent Endpoint Active</span>
         <h1>Smart Scraper M2M</h1>
-        <p>An automated web scraping API built for AI Agents. Test a URL below:</p>
+        <p>An automated web scraping API built for AI Agents (Puppeteer-powered). Test a URL below:</p>
         
         <form action="/scrape" method="POST" class="input-group">
           <input type="url" name="url" placeholder="https://example.com" required>
@@ -84,92 +85,79 @@ app.get('/robots.txt', (req, res) => {
 
 app.post(['/scrape', '/api/scrape'], async (req, res) => {
   const url = req.body ? (req.body.url || req.body.targetUrl) : null;
-  const schema = req.body ? req.body.schema : null;
 
   if (!url) {
     return res.status(400).json({ error: "Veuillez fournir l'URL du site web." });
   }
 
-  return await scrapeAndExtractJSON(url, schema, res);
+  return await scrapeWithPuppeteer(url, res);
 });
 
-async function scrapeAndExtractJSON(targetUrl, userSchema, res) {
+async function scrapeWithPuppeteer(targetUrl, res) {
+  let browser = null;
   try {
-    const webResponse = await axios.get(targetUrl, {
-      headers: { 
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' 
-      },
-      timeout: 10000
+    // إعداد المتصفح لبيئة Vercel Serverless
+    browser = await puppeteer.launch({
+      args: chromium.args,
+      defaultViewport: chromium.defaultViewport,
+      executablePath: await chromium.executablePath(),
+      headless: chromium.headless,
+      ignoreHTTPSErrors: true,
     });
 
-    let parsedContent = webResponse.data;
-    let cleanedText = "";
+    const page = await browser.newPage();
 
-    if (typeof parsedContent === 'object') {
-      cleanedText = JSON.stringify(parsedContent);
-    } else {
-      cleanedText = String(parsedContent)
-        .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-        .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
-        .replace(/<[^>]*>/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim();
-    }
-
-    cleanedText = cleanedText.substring(0, 10000);
-
-    if (typeof parsedContent === 'object' && !userSchema) {
-      return res.status(200).json({
-        status: "success",
-        source_url: targetUrl,
-        extracted_data: parsedContent
-      });
-    }
-
-    const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-
-    if (!GEMINI_API_KEY) {
-      return res.status(500).json({ error: "GEMINI_API_KEY is not configured in environment variables." });
-    }
-
-    const schemaInstruction = userSchema 
-      ? `Extract and map data using these keys/schema: ${JSON.stringify(userSchema)}`
-      : "Extract all core data into a structured JSON object with clean key-value pairs.";
-
-    const aiResponse = await axios.post(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
-      {
-        contents: [
-          {
-            parts: [
-              {
-                text: `You are a data extraction AI. Extract clean structured data from this content according to this instruction: ${schemaInstruction}\n\nSource Content:\n${cleanedText}`
-              }
-            ]
-          }
-        ],
-        generationConfig: {
-          responseMimeType: "application/json"
-        }
-      },
-      {
-        headers: { 'Content-Type': 'application/json' }
-      }
+    // ضبط User-Agent لمنع الحظر
+    await page.setUserAgent(
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
     );
 
-    const rawJsonText = aiResponse.data.candidates[0].content.parts[0].text;
-    const finalJson = JSON.parse(rawJsonText);
+    // الانتقال للـ URL وانتظار تحميل الـ DOM
+    await page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: 15000 });
+
+    // استخراج البيانات وتنسيقها كـ JSON
+    const extractedData = await page.evaluate(() => {
+      const getCleanText = (el) => el ? el.innerText.trim() : '';
+
+      const headings = Array.from(document.querySelectorAll('h1, h2, h3'))
+        .map(h => h.innerText.trim())
+        .filter(text => text.length > 0);
+
+      const paragraphs = Array.from(document.querySelectorAll('p'))
+        .map(p => p.innerText.trim())
+        .filter(text => text.length > 0)
+        .slice(0, 15); // أخذ أول 15 فقرة
+
+      const links = Array.from(document.querySelectorAll('a'))
+        .map(a => ({ text: a.innerText.trim(), href: a.href }))
+        .filter(link => link.text.length > 0 && link.href.startsWith('http'))
+        .slice(0, 10); // أخذ أول 10 روابط
+
+      return {
+        title: document.title || '',
+        headings: headings,
+        paragraphs: paragraphs,
+        links: links
+      };
+    });
+
+    await browser.close();
 
     return res.status(200).json({
       status: "success",
       source_url: targetUrl,
-      extracted_data: finalJson
+      extracted_data: extractedData
     });
 
   } catch (error) {
-    const errDetail = error.response ? JSON.stringify(error.response.data) : error.message;
-    console.error("Scraping Error:", errDetail);
-    return res.status(500).json({ error: "Failed to process JSON data.", detail: errDetail });
+    if (browser) {
+      await browser.close();
+    }
+    console.error("Puppeteer Scraping Error:", error.message);
+    return res.status(500).json({ 
+      error: "Failed to scrape target URL using Puppeteer.", 
+      detail: error.message 
+    });
   }
 }
 
