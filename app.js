@@ -1,6 +1,6 @@
 const express = require('express');
-const puppeteer = require('puppeteer-core');
-const chromium = require('@sparticuz/chromium');
+const axios = require('axios');
+const cheerio = require('cheerio');
 
 const app = express();
 
@@ -53,7 +53,7 @@ app.get('/', (req, res) => {
       <div class="card">
         <span class="badge">● M2M Agent Endpoint Active</span>
         <h1>Smart Scraper M2M</h1>
-        <p>An automated web scraping API built for AI Agents (Puppeteer-powered). Test a URL below:</p>
+        <p>An automated web scraping API built for AI Agents. Test a URL below:</p>
         
         <form action="/scrape" method="POST" class="input-group">
           <input type="url" name="url" placeholder="https://example.com" required>
@@ -90,73 +90,62 @@ app.post(['/scrape', '/api/scrape'], async (req, res) => {
     return res.status(400).json({ error: "Veuillez fournir l'URL du site web." });
   }
 
-  return await scrapeWithPuppeteer(url, res);
+  return await scrapeWithCheerio(url, res);
 });
 
-async function scrapeWithPuppeteer(targetUrl, res) {
-  let browser = null;
+async function scrapeWithCheerio(targetUrl, res) {
   try {
-    // إعداد المتصفح لبيئة Vercel Serverless
-    browser = await puppeteer.launch({
-      args: chromium.args,
-      defaultViewport: chromium.defaultViewport,
-      executablePath: await chromium.executablePath(),
-      headless: chromium.headless,
-      ignoreHTTPSErrors: true,
+    const { data } = await axios.get(targetUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+      },
+      timeout: 8000
     });
 
-    const page = await browser.newPage();
+    const $ = cheerio.load(data);
 
-    // ضبط User-Agent لمنع الحظر
-    await page.setUserAgent(
-      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-    );
+    // إزالة السكريبتات والتنسيقات الناتجة
+    $('script, style, noscript, svg').remove();
 
-    // الانتقال للـ URL وانتظار تحميل الـ DOM
-    await page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: 15000 });
-
-    // استخراج البيانات وتنسيقها كـ JSON
-    const extractedData = await page.evaluate(() => {
-      const getCleanText = (el) => el ? el.innerText.trim() : '';
-
-      const headings = Array.from(document.querySelectorAll('h1, h2, h3'))
-        .map(h => h.innerText.trim())
-        .filter(text => text.length > 0);
-
-      const paragraphs = Array.from(document.querySelectorAll('p'))
-        .map(p => p.innerText.trim())
-        .filter(text => text.length > 0)
-        .slice(0, 15); // أخذ أول 15 فقرة
-
-      const links = Array.from(document.querySelectorAll('a'))
-        .map(a => ({ text: a.innerText.trim(), href: a.href }))
-        .filter(link => link.text.length > 0 && link.href.startsWith('http'))
-        .slice(0, 10); // أخذ أول 10 روابط
-
-      return {
-        title: document.title || '',
-        headings: headings,
-        paragraphs: paragraphs,
-        links: links
-      };
+    const title = $('title').text().trim() || '';
+    
+    const headings = [];
+    $('h1, h2, h3').each((i, el) => {
+      const text = $(el).text().trim();
+      if (text) headings.push(text);
     });
 
-    await browser.close();
+    const paragraphs = [];
+    $('p').each((i, el) => {
+      const text = $(el).text().trim();
+      if (text) paragraphs.push(text);
+    });
+
+    const links = [];
+    $('a').each((i, el) => {
+      const text = $(el).text().trim();
+      const href = $(el).attr('href');
+      if (text && href && href.startsWith('http')) {
+        links.push({ text, href });
+      }
+    });
 
     return res.status(200).json({
       status: "success",
       source_url: targetUrl,
-      extracted_data: extractedData
+      extracted_data: {
+        title,
+        headings: headings.slice(0, 10),
+        paragraphs: paragraphs.slice(0, 15),
+        links: links.slice(0, 10)
+      }
     });
 
   } catch (error) {
-    if (browser) {
-      await browser.close();
-    }
-    console.error("Puppeteer Scraping Error:", error.message);
-    return res.status(500).json({ 
-      error: "Failed to scrape target URL using Puppeteer.", 
-      detail: error.message 
+    console.error("Scraping Error:", error.message);
+    return res.status(500).json({
+      error: "Failed to scrape target URL.",
+      detail: error.message
     });
   }
 }
