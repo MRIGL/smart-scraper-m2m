@@ -1,6 +1,5 @@
 const express = require('express');
 const axios = require('axios');
-const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 const app = express();
 
@@ -133,22 +132,32 @@ async function scrapeAndExtractJSON(targetUrl, userSchema, res) {
       return res.status(500).json({ error: "GEMINI_API_KEY is not configured in environment variables." });
     }
 
-    const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-    
-    // 💡 استخدام موديل gemini-3.6-flash المطلوب
-    const model = genAI.getGenerativeModel({
-      model: "gemini-3.6-flash",
-      generationConfig: { responseMimeType: "application/json" }
-    });
-
     const schemaInstruction = userSchema 
       ? `Extract and map data using these keys/schema: ${JSON.stringify(userSchema)}`
       : "Extract all core data into a structured JSON object with clean key-value pairs.";
 
-    const prompt = `You are a data extraction AI. Extract clean structured data from this content according to this instruction: ${schemaInstruction}\n\nSource Content:\n${cleanedText}`;
+    const aiResponse = await axios.post(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+      {
+        contents: [
+          {
+            parts: [
+              {
+                text: `You are a data extraction AI. Extract clean structured data from this content according to this instruction: ${schemaInstruction}\n\nSource Content:\n${cleanedText}`
+              }
+            ]
+          }
+        ],
+        generationConfig: {
+          responseMimeType: "application/json"
+        }
+      },
+      {
+        headers: { 'Content-Type': 'application/json' }
+      }
+    );
 
-    const result = await model.generateContent(prompt);
-    const rawJsonText = result.response.text();
+    const rawJsonText = aiResponse.data.candidates[0].content.parts[0].text;
     const finalJson = JSON.parse(rawJsonText);
 
     return res.status(200).json({
@@ -158,8 +167,9 @@ async function scrapeAndExtractJSON(targetUrl, userSchema, res) {
     });
 
   } catch (error) {
-    console.error("Scraping Error:", error);
-    return res.status(500).json({ error: "Failed to process JSON data.", detail: error.message });
+    const errDetail = error.response ? JSON.stringify(error.response.data) : error.message;
+    console.error("Scraping Error:", errDetail);
+    return res.status(500).json({ error: "Failed to process JSON data.", detail: errDetail });
   }
 }
 
